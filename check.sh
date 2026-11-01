@@ -11,9 +11,13 @@ uk_time() { TZ=Europe/London date '+%H:%M on %-d %b'; }
 check() { # prints "ok" or, in plain English, what went wrong
 	local out code
 	out=$(curl -sS -L -m 30 -A 'Mozilla/5.0 (site-monitor; +https://github.com/JreMarketing/site-monitor)' \
-		-o body.html -w '%{http_code}' "$1?uptime=$(date +%s)" 2>/dev/null) || { echo "it didn't load within 30 seconds"; return; }
+		-D headers.txt -o body.html -w '%{http_code}' "$1?uptime=$(date +%s)" 2>/dev/null) || { echo "it didn't load within 30 seconds"; return; }
 	code=$out
-	if [ "$code" = 202 ] || grep -qiE 'sgcaptcha|Just a moment|challenge-platform' body.html; then echo challenged; return; fi
+	if [ "$code" = 202 ] || grep -qiE 'sgcaptcha|Just a moment|challenge-platform' body.html; then
+		{ echo "::group::Bot check details for $1 ($(date -u '+%Y-%m-%d %H:%M:%S UTC'), runner IP $(curl -s -m 5 https://api.ipify.org))"
+		  grep -iE '^(HTTP|server|cf-ray|cf-mitigated|date|location|x-|sg-)' headers.txt; head -c 400 body.html; echo; echo "::endgroup::"; } >&2
+		echo challenged; return
+	fi
 	case "$code" in
 		200) grep -qi '</html>' body.html && echo ok || echo "only part of the page loaded" ;;
 		5*) echo "it shows a server error (code $code)" ;;
