@@ -19,7 +19,7 @@ grep -v '^\s*#' sites.txt | grep . | while read -r site; do
 	name=${site#https://}; name=${name%/}
 	r=$(check "$site")
 	[ "$r" != ok ] && { sleep 20; r=$(check "$site"); }
-	open=$(gh issue list --state open --search "\"DOWN: $name\" in:title" --json number --jq '.[0].number // empty')
+	open=$(gh issue list --state open --limit 100 --json number,title --jq ".[] | select(.title == \"DOWN: $name\") | .number" | head -1)
 	echo "$name: $r${open:+ (issue #$open open)}"
 	if [ "$r" != ok ] && [ -z "$open" ]; then
 		gh issue create --title "DOWN: $name" --body "@JreMarketing $site is not working: $r (checked $(now), twice 20 seconds apart).
