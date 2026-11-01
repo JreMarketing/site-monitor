@@ -1,0 +1,6 @@
+# One site per line. Each is checked every 5 minutes (GitHub may start a run a few minutes late).
+https://realpointproperty.com/
+https://luxuryitalianhouses.com/
+https://italianhomesunder100k.com/
+https://post2portal.com/
+https://freepassyorkshire.com/
