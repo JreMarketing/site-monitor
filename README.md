@@ -1,8 +1,8 @@
 # Site monitor
 
 Checks the home page of every site in `sites.txt` every 5 minutes, from GitHub (outside SiteGround, where all the
-sites are hosted). When a site doesn't return a full page within 30 seconds, twice in a row, an issue **DOWN: site**
-opens and GitHub emails the owner; when the site works again the issue gets a "back up" comment and closes.
+sites are hosted). When a site doesn't return a full page within 30 seconds, twice in a row, an issue **Website down: name**
+opens and GitHub emails the owner; when the site works again the issue gets a "working again" comment and closes.
 
 - Add or remove a site: edit `sites.txt`.
 - Run a check now: Actions → Check sites → Run workflow.

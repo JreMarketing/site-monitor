@@ -1,6 +1,7 @@
-# One site per line. Each is checked every 5 minutes (GitHub may start a run a few minutes late).
-https://realpointproperty.com/
-https://luxuryitalianhouses.com/
-https://italianhomesunder100k.com/
-https://post2portal.com/
-https://freepassyorkshire.com/
+# One site per line: address | name used in the emails. Each is checked every 5 minutes
+# (GitHub may start a run a few minutes late).
+https://realpointproperty.com/ | Realpoint Property
+https://luxuryitalianhouses.com/ | Luxury Italian Houses
+https://italianhomesunder100k.com/ | Italian Homes Under 100k
+https://post2portal.com/ | Post2Portal
+https://freepassyorkshire.com/ | Free Pass Yorkshire
