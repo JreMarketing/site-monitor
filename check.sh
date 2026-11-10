@@ -5,6 +5,13 @@
 # A bot check (SiteGround's "verifying you're human" page answers 202, Cloudflare's "Just a moment") means the server
 # answered but wouldn't show GitHub's runner the page: that is "challenged", not down, so it opens and closes nothing.
 # A real outage still shows as a timeout or a server error. False alarms on 1 Nov 2026 13:56 (issues #2-#4).
+#
+# Two extra modes (10 Nov 2026), because GitHub only ran the 5-minute schedule ~30 times a day:
+# - CHECK_ONLY=1: just check and print "name<TAB>result" lines, no issues (the DigitalOcean droplet runs this every
+#   5 minutes from cron, see droplet/run-monitor.sh; it isn't challenged by SiteGround's bot check).
+# - REPORT="name<TAB>result" lines: use those results instead of checking (the droplet passes its results to the
+#   "Check sites" workflow, so GitHub's bot opens and closes the issues and GitHub emails the owner as before; issues
+#   opened with the owner's own key send no email). A site missing from the report is checked here as usual.
 set -u
 uk_time() { TZ=Europe/London date '+%H:%M on %-d %b'; }
 
@@ -28,8 +35,17 @@ check() { # prints "ok" or, in plain English, what went wrong
 
 grep -v '^\s*#' sites.txt | grep . | while IFS='|' read -r site name; do
 	site=$(echo $site); name=$(echo $name)
-	r=$(check "$site")
-	[ "$r" != ok ] && { sleep 20; r=$(check "$site"); }
+	r=$(printf '%s\n' "${REPORT:-}" | awk -F'\t' -v n="$name" '$1 == n { print $2; exit }')
+	if [ -z "$r" ]; then
+		r=$(check "$site")
+		[ "$r" != ok ] && { sleep 20; r=$(check "$site"); }
+	else
+		case "$r" in ok | challenged) ;; *) r="$r, seen from the monitoring server" ;; esac
+	fi
+	if [ -n "${CHECK_ONLY:-}" ]; then
+		printf '%s\t%s\n' "$name" "$r"
+		continue
+	fi
 	title="Website down: $name"
 	open=$(gh issue list --state open --limit 100 --json number,title --jq ".[] | select(.title == \"$title\") | .number" | head -1)
 	echo "$name: $r${open:+ (issue #$open open)}"

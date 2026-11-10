@@ -3,6 +3,11 @@ on:
   schedule:
     - cron: '*/5 * * * *'
   workflow_dispatch:
+    inputs:
+      report:
+        description: 'Results from the monitoring server, one "name<TAB>result" line per site (empty: check from here)'
+        required: false
+        default: ''
 permissions:
   contents: write
   issues: write
@@ -18,6 +23,7 @@ jobs:
       - name: Check every site
         env:
           GH_TOKEN: ${{ github.token }}
+          REPORT: ${{ inputs.report }}
         run: bash check.sh
       # GitHub switches off scheduled runs in a repo with no commits for 60 days, so commit a heartbeat monthly.
       - name: Keep the schedule alive

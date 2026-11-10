@@ -15,3 +15,15 @@ opens and GitHub emails the owner; when the site works again the issue gets a "w
 
 Set up 1 Nov 2026 after two outages on italianhomesunder100k.com (31 Oct and 1 Nov) that nobody was told about.
 Public so GitHub Actions minutes are free; it holds only public site addresses.
+
+## The monitoring server (since 10 Nov 2026)
+
+GitHub only ran the 5-minute schedule about 30 times a day, so the checks now also run every 5 minutes from the
+DigitalOcean droplet (`ssh droplet`), which SiteGround's bot check doesn't challenge. `droplet/run-monitor.sh` is
+installed at `/opt/site-monitor/` with `check.sh` and `sites.txt`, run by root's cron. It checks with
+`CHECK_ONLY=1 bash check.sh` and hands the results to this workflow (`workflow_dispatch`, input `report`) when a site
+isn't OK, right after a problem clears, and at least once an hour. GitHub's bot then opens and closes the
+"Website down" issues as before, so the emails still come from GitHub (issues opened with the owner's own key send
+no email). The key is a fine-grained token in `/opt/site-monitor/gh-token` (this repository only; Actions and Issues
+read/write), saved there by the owner. Log: `/opt/site-monitor/monitor.log`. The GitHub schedule stays as a backup.
+After changing `check.sh` or `sites.txt`, copy them to `/opt/site-monitor/` as well.
