@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Checks every site in sites.txt. A site is down when its home page doesn't return a full page (HTTP 200 and </html>)
-# within 30 seconds, twice in a row 20 seconds apart. A down site gets an open issue "Website down: <name>" (GitHub
-# emails the owner); when it works again the issue gets a "working again" comment and is closed (another email).
+# within 30 seconds, twice in a row 20 seconds apart. Down sites share one open issue "Website down: <names>" (GitHub
+# emails the owner); when every site works again it is renamed "Back to normal: <names>" and closed (one more email).
 # A bot check (SiteGround's "verifying you're human" page answers 202, Cloudflare's "Just a moment") means the server
 # answered but wouldn't show GitHub's runner the page: that is "challenged", not down, so it opens and closes nothing.
 # A real outage still shows as a timeout or a server error. False alarms on 1 Nov 2026 13:56 (issues #2-#4).
@@ -33,7 +33,8 @@ check() { # prints "ok" or, in plain English, what went wrong
 	esac
 }
 
-grep -v '^\s*#' sites.txt | grep . | while IFS='|' read -r site name; do
+down=""; downnames=""
+while IFS='|' read -r site name; do
 	site=$(echo $site); name=$(echo $name)
 	r=$(printf '%s\n' "${REPORT:-}" | awk -F'\t' -v n="$name" '$1 == n { print $2; exit }')
 	if [ -z "$r" ]; then
@@ -46,22 +47,39 @@ grep -v '^\s*#' sites.txt | grep . | while IFS='|' read -r site name; do
 		printf '%s\t%s\n' "$name" "$r"
 		continue
 	fi
-	title="Website down: $name"
-	open=$(gh issue list --state open --limit 100 --json number,title --jq ".[] | select(.title == \"$title\") | .number" | head -1)
-	echo "$name: $r${open:+ (issue #$open open)}"
+	echo "$name: $r"
 	if [ "$r" = challenged ]; then
 		echo "::warning::$name: bot check (code 202 or a challenge page), not counted as down or up"
-	elif [ "$r" != ok ] && [ -z "$open" ]; then
-		gh issue create --title "$title" --body "**$name is not working.** $site
-${r^} (checked at $(uk_time) UK time, twice).
-
-You'll get another email as soon as it's working again.
-
-_Automatic alert for @JreMarketing._" >/dev/null
-	elif [ "$r" = ok ] && [ -n "$open" ]; then
-		gh issue comment "$open" --body "**$name is working again** (checked at $(uk_time) UK time).
-
-_Automatic alert for @JreMarketing._" >/dev/null
-		gh issue close "$open" >/dev/null
+	elif [ "$r" != ok ]; then
+		down="$down- **$name** ($site): ${r}"$'\n'
+		downnames="${downnames:+$downnames, }$name"
 	fi
-done
+done < <(grep -v '^\s*#' sites.txt | grep .)
+[ -n "${CHECK_ONLY:-}" ] && exit 0
+
+# One issue per outage (10 Nov 2026, owner: one short blip had sent 10 emails). It opens once, listing every site that
+# is down (1 email); sites that go down later are added by editing it (edits send no email); when every site works
+# again it is renamed "Back to normal: ..." and closed with no comment (1 email). So one outage = 2 emails.
+open=$(gh issue list --state open --label outage --limit 1 --json number --jq '.[0].number // empty')
+if [ -n "$down" ]; then
+	body="**Not working** (checked at $(uk_time) UK time, twice):
+
+$down
+You'll get one more email when every site is working again.
+
+_Automatic alert for @JreMarketing._"
+	if [ -z "$open" ]; then
+		gh label create outage --color B60205 --description 'Site monitor: websites down' >/dev/null 2>&1 || true
+		gh issue create --title "Website down: $downnames" --label outage --body "$body" >/dev/null && echo "opened an outage issue"
+	else
+		old=$(gh issue view "$open" --json title --jq .title)
+		if [ "$old" != "Website down: $downnames" ]; then # another site went down (or one came back): update the list
+			gh issue edit "$open" --title "Website down: $downnames" --body "${body%%_Automatic alert*}" >/dev/null
+		fi
+		echo "outage issue #$open still open"
+	fi
+elif [ -n "$open" ]; then
+	was=$(gh issue view "$open" --json title --jq .title | sed 's/^Website down: //')
+	gh issue edit "$open" --title "Back to normal: $was" --body "**Every site is working again** (checked at $(uk_time) UK time). Was down: $was." >/dev/null
+	gh issue close "$open" --reason completed >/dev/null && echo "outage issue #$open closed: back to normal"
+fi

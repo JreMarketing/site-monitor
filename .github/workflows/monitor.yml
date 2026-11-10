@@ -1,7 +1,8 @@
 name: Check sites
+# Started only by the DigitalOcean droplet every 5 minutes (droplet/run-monitor.sh). GitHub's own 5-minute schedule
+# was removed on 10 Nov 2026 so there is one source of alerts (it only ran ~30 times a day and SiteGround's bot check
+# challenges GitHub's runners). The daily watchdog task flags it if the droplet stops handing over for 2 hours.
 on:
-  schedule:
-    - cron: '*/5 * * * *'
   workflow_dispatch:
     inputs:
       report:
